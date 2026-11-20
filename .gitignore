@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+node_modules/
+*.log
+*.wav
+*.mp3
+*.csv
+*.sqlite
+*execution*.json
+*credentials*.json
+.DS_Store

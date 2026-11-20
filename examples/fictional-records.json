@@ -1,0 +1,78 @@
+{
+  "buyers": [
+    {
+      "id": "buyer-example-001",
+      "Preferred Regions": [
+        "region-A"
+      ],
+      "Contact Name": "Sample Buyer 1",
+      "Contact Number": "(415) 555-0100"
+    },
+    {
+      "id": "buyer-example-002",
+      "Preferred Regions": [
+        "region-B"
+      ],
+      "Contact Name": "Sample Buyer 2",
+      "Contact Number": "650-555-0101"
+    },
+    {
+      "id": "buyer-example-003",
+      "Preferred Regions": [
+        "region-X"
+      ],
+      "Contact Name": "Sample Buyer 3",
+      "Contact Number": "415-555-0102"
+    }
+  ],
+  "listings": [
+    {
+      "id": "listing-example-001",
+      "Listing Status": "Available",
+      "Region IDs": [
+        "region-A"
+      ],
+      "City": "Example City",
+      "Region Name": [
+        "Example Metro"
+      ],
+      "Listing Headline": "Sample property A",
+      "Listing Description": "Illustrative listing, not for sale",
+      "Participation Fee": 15000,
+      "Ranking Score": 80,
+      "Listing Added Date": "2026-01-02"
+    },
+    {
+      "id": "listing-example-002",
+      "Listing Status": "Available",
+      "Region IDs": [
+        "region-A"
+      ],
+      "City": "Example City",
+      "Region Name": [
+        "Example Metro"
+      ],
+      "Listing Headline": "Sample property B",
+      "Listing Description": "Illustrative listing, not for sale",
+      "Participation Fee": 12000,
+      "Ranking Score": 90,
+      "Listing Added Date": "2026-01-01"
+    },
+    {
+      "id": "listing-example-003",
+      "Listing Status": "Unavailable",
+      "Region IDs": [
+        "region-B"
+      ],
+      "City": "Example City",
+      "Region Name": [
+        "Example Metro"
+      ],
+      "Listing Headline": "Sample property C",
+      "Listing Description": "Illustrative listing, not for sale",
+      "Participation Fee": 9000,
+      "Ranking Score": 100,
+      "Listing Added Date": "2026-01-03"
+    }
+  ]
+}

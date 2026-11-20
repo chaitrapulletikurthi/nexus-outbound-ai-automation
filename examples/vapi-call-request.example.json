@@ -1,0 +1,12 @@
+{
+  "assistantId": "REPLACE_WITH_SAVED_ASSISTANT_ID",
+  "phoneNumberId": "REPLACE_WITH_IMPORTED_OUTBOUND_PHONE_ID",
+  "customer": { "number": "REPLACE_WITH_AUTHORIZED_TEST_NUMBER_IN_E164" },
+  "assistantOverrides": {
+    "variableValues": {
+      "buyer_name": "Taylor",
+      "buyer_ref": "buyer-demo-A",
+      "property_briefing": "Property A: Fictional listing summary."
+    }
+  }
+}

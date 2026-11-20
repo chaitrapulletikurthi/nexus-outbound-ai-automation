@@ -1,0 +1,38 @@
+{
+  "buyerId": "buyer-demo-A",
+  "phone": "REPLACE_WITH_AUTHORIZED_TEST_NUMBER_IN_E164",
+  "aiVoiceConsent": true,
+  "consentEvidenceId": "consent-demo-A",
+  "consentTextVersion": "v1",
+  "consentedAt": "2026-11-01T00:00:00Z",
+  "consentedPhone": "REPLACE_WITH_AUTHORIZED_TEST_NUMBER_IN_E164",
+  "marketingConsentReviewed": true,
+  "internalDnc": false,
+  "stateDncClear": true,
+  "nationalDncClear": true,
+  "dncScreenedAt": "2026-11-19T17:00:00Z",
+  "stateRulesApproved": true,
+  "recordingPlanApproved": true,
+  "verifiedTimezone": "America/Los_Angeles",
+  "allowedLocalWindowReviewed": true,
+  "consentScope": "AI voice marketing",
+  "consentSource": "fictional_verified_opt_in",
+  "consentReviewedAt": "2026-11-19T17:00:00Z",
+  "dncEvidenceId": "fictional_screen_evidence",
+  "dncProvider": "approved_private_registry_service",
+  "callingRulesEvidenceId": "fictional_jurisdiction_review",
+  "recordingPlanEvidenceId": "fictional_recording_approval",
+  "callingRulesReviewedAt": "2026-11-19T17:00:00Z",
+  "legalCallingWindow": {
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "startMinute": 540,
+    "endMinute": 1200
+  },
+  "callingWindowEvidenceId": "fictional_reviewed_window"
+}

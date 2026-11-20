@@ -1,0 +1,271 @@
+{
+  "name": "Outbound Matching & Call Preparation - Safe Reference",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "triggerAtHour": 17
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -576,
+        -64
+      ],
+      "id": "41d0a28b-e7cf-4d2f-b424-bd95336f703a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "REPLACE_WITH_AIRTABLE_BASE_ID",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONTACTS_TABLE_ID",
+          "mode": "id"
+        },
+        "filterByFormula": "AND(\n  LEN(TRIM({Contact Number} & \"\")) > 0,\n  LEN(TRIM({Preferred Regions} & \"\")) > 0,\n  NOT({Do Not Contact})\n)\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -400,
+        128
+      ],
+      "id": "a4150b72-be47-4240-9ada-2e441abb8494",
+      "name": "Buyer Record Search"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "REPLACE_WITH_AIRTABLE_BASE_ID",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "REPLACE_WITH_LISTINGS_TABLE_ID",
+          "mode": "id"
+        },
+        "filterByFormula": "{Listing Status} = 'Available'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -256,
+        -112
+      ],
+      "id": "40d046c4-91e2-4c3a-8ef3-11610325f263",
+      "name": "Deals Search",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const buyers = $('Buyer Record Search').all();\nconst deals = $('Deals Search').all();\n\nconst results = [];\n\n// Convert Airtable linked-record fields into arrays\nfunction toArray(value) {\n  if (Array.isArray(value)) return value;\n  if (typeof value === 'string' && value.trim()) {\n    return [value.trim()];\n  }\n  return [];\n}\n\n// Convert dates into timestamps for sorting\nfunction getTimestamp(value) {\n  if (!value) return 0;\n  const timestamp = Date.parse(value);\n  return Number.isNaN(timestamp) ? 0 : timestamp;\n}\n\n// Process each buyer\nfor (const buyerItem of buyers) {\n  const buyer = buyerItem.json;\n\n  const buyerMetros = toArray(buyer['Preferred Regions']);\n\n  // Skip buyers without a valid record ID or metro preference\n  if (!buyer.id || buyerMetros.length === 0) {\n    continue;\n  }\n\n  const matchingDeals = [];\n  const seenDealIds = new Set();\n\n  // Find all available deals matching this buyer's metros\n  for (const dealItem of deals) {\n    const deal = dealItem.json;\n\n    if (!deal.id || deal['Listing Status'] !== 'Available') {\n      continue;\n    }\n\n    // Avoid duplicate property records\n    if (seenDealIds.has(deal.id)) {\n      continue;\n    }\n\n    const dealMetros = toArray(deal['Region IDs']);\n\n    // Exact Airtable Region IDs ID matching\n    const matchedMetroId = buyerMetros.find(\n      metroId => dealMetros.includes(metroId)\n    );\n\n    if (!matchedMetroId) {\n      continue;\n    }\n\n    seenDealIds.add(deal.id);\n\n    matchingDeals.push({\n      dealId: deal.id,\n      city: deal.City || null,\n      metro: deal['Region Name'] || [],\n      matchedMetroId: matchedMetroId,\n\n      dealSummary:\n        deal['Listing Headline'] || null,\n\n      marketingSnippet:\n        deal['Listing Description'] || null,\n\n      entryFee: deal['Participation Fee'] ?? null,\n\n      priorityScore:\n        Number(deal['Ranking Score']) || 0,\n\n      addedDate:\n        deal['Listing Added Date'] ||\n        deal.createdTime ||\n        null\n    });\n  }\n\n  // Sort: highest priority score, then newest deal\n  matchingDeals.sort((a, b) => {\n    if (b.priorityScore !== a.priorityScore) {\n      return b.priorityScore - a.priorityScore;\n    }\n\n    return (\n      getTimestamp(b.addedDate) -\n      getTimestamp(a.addedDate)\n    );\n  });\n\n  // Select a maximum of 3 deals\n  const topDeals = matchingDeals\n    .slice(0, 3)\n    .map((deal, index) => ({\n      rank: index + 1,\n      ...deal\n    }));\n\n  // Only return buyers who have matching properties\n  if (topDeals.length > 0) {\n    results.push({\n      json: {\n        buyerId: buyer.id,\n        buyerName: buyer['Contact Name'] || null,\n        phone: buyer['Contact Number'] || null,\n\n        totalMatchingDeals: matchingDeals.length,\n        selectedDealCount: topDeals.length,\n\n        topDeals: topDeals,\n\n        // Preparation only; no call is initiated here\n        outreachStatus: 'Pending Review'\n      }\n    });\n  }\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        112
+      ],
+      "id": "6d5533ea-51f4-4341-b2fa-b3c292ed7665",
+      "name": "Match Buyers to Deals"
+    },
+    {
+      "parameters": {
+        "jsCode": "const matchedBuyers = $('Match Buyers to Deals').all();\n\nconst results = [];\n\n// Convert values into safe strings\nfunction cleanText(value) {\n  if (value === null || value === undefined) {\n    return '';\n  }\n\n  if (Array.isArray(value)) {\n    return value.filter(Boolean).join(', ');\n  }\n\n  return String(value).trim();\n}\n\n// Format monetary values for voice conversations\nfunction formatMoney(value) {\n  if (value === null || value === undefined || value === '') {\n    return 'Not specified';\n  }\n\n  const number = Number(value);\n\n  if (!Number.isFinite(number)) {\n    return cleanText(value);\n  }\n\n  return '$' + number.toLocaleString('en-US', {\n    maximumFractionDigits: 0\n  });\n}\n\n// Process each buyer\nfor (const item of matchedBuyers) {\n  const buyer = item.json;\n\n  const topDeals = Array.isArray(buyer.topDeals)\n    ? buyer.topDeals.slice(0, 3)\n    : [];\n\n  if (topDeals.length === 0) {\n    continue;\n  }\n\n  // Format the three deals for NEXUS\n  const properties = topDeals.map((deal, index) => ({\n    rank: index + 1,\n    dealId: deal.dealId,\n    matchedMetroId: deal.matchedMetroId,\n    city: cleanText(deal.city),\n    metro: cleanText(deal.metro),\n    summary: cleanText(deal.dealSummary),\n    description: cleanText(deal.marketingSnippet),\n    entryFee: deal.entryFee ?? null,\n    entryFeeFormatted: formatMoney(deal.entryFee)\n  }));\n\n  const primaryProperty = properties[0];\n\n  const alternativeProperties = properties.slice(1);\n\n  // Prepare a readable property briefing for the AI agent\n  const propertyBriefing = properties.map(property => {\n    return [\n      `Property ${property.rank}`,\n      `Deal ID: ${property.dealId}`,\n      `City: ${property.city}`,\n      `Metro: ${property.metro}`,\n      `Summary: ${property.summary}`,\n      `Participation Fee: ${property.entryFeeFormatted}`,\n      `Details: ${property.description}`\n    ].join('\\n');\n  }).join('\\n\\n');\n\n  // Instructions that can be supplied to the Vapi assistant\n  const agentInstructions = `\nYou are PROPERTY ASSISTANT, the AI voice assistant for Example Property Company.\n\nYou are speaking with ${cleanText(buyer.buyerName)}.\n\nYour purpose is to discuss available real estate investment\nopportunities that match the buyer's preferred metro areas.\n\nCONVERSATION RULES:\n\n1. Introduce yourself as PROPERTY ASSISTANT from Example Property Company.\n2. Explain that you are an AI assistant.\n3. Ask whether this is a convenient time to discuss a property.\n4. Begin with Property 1 only if the buyer agrees.\n5. Describe the property naturally and concisely.\n6. Ask whether the buyer is interested.\n7. If interested, capture the exact Deal ID and request\n   a follow-up from the property team.\n8. If not interested, ask whether the buyer would like\n   to hear about another opportunity.\n9. If the buyer agrees, discuss Property 2, then Property 3.\n10. Never automatically pitch every property.\n11. Never invent prices, property specifications,\n    availability, or financing terms.\n12. If the buyer declines further discussion, end politely.\n13. If the buyer asks not to be contacted again,\n    acknowledge the request and flag it for suppression.\n14. Do not promise that a deal is reserved or guaranteed.\n15. Follow the configured call-recording disclosure\n    and company policies.\n\nAVAILABLE PROPERTIES:\n\n${propertyBriefing}\n`.trim();\n\n  results.push({\n    json: {\n      buyerId: buyer.buyerId,\n      buyerName: cleanText(buyer.buyerName),\n      phone: cleanText(buyer.phone),\n\n      totalMatchingDeals: buyer.totalMatchingDeals,\n      selectedDealCount: properties.length,\n\n      primaryProperty,\n      alternativeProperties,\n      topDeals: properties,\n\n      propertyBriefing,\n      agentInstructions,\n\n      // Preparation status only\n      outreachStatus: 'Pending Review'\n    }\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -112
+      ],
+      "id": "b6c2263b-9d29-4f83-97e7-0e7f91ffc3bf",
+      "name": "Vapi Call Data Prep"
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "phone",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        384,
+        -112
+      ],
+      "id": "8c10ba84-8370-4902-911c-e978eb7be04c",
+      "name": "Remove Duplicate Buyers"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const buyer = item.json;\n\n  // Remove spaces, brackets, dashes, and other formatting\n  let digits = String(buyer.phone || '').replace(/\\D/g, '');\n\n  // Convert US 10-digit numbers to international format\n  if (digits.length === 10) {\n    digits = '1' + digits;\n  }\n\n  // Accept US numbers with a country code\n  if (!/^1[2-9]\\d{2}[2-9]\\d{6}$/.test(digits)) {\n    continue;\n  }\n\n  results.push({\n    json: {\n      ...buyer,\n      phone: '+' + digits\n    }\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        96
+      ],
+      "id": "48d27e97-f8b3-4326-a892-365173219394",
+      "name": "Normalize Phone number"
+    },
+    {
+      "parameters": {
+        "jsCode": "// The private /prepare-and-enqueue endpoint performs authoritative listing review.\n// This node intentionally sends ONLY prepared data; it does not assert consent or approval.\nreturn $input.all().map(item=>({json:{buyerId:item.json.buyerId,buyerName:item.json.buyerName,phone:item.json.phone,topDeals:item.json.topDeals,propertyBriefing:item.json.propertyBriefing}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        96
+      ],
+      "id": "5a6447ab-ae06-4bae-9198-ea150e819ee6",
+      "name": "Queue Handoff Review"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_PRIVATE_QUEUE_SERVICE/prepare-and-enqueue",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "sendHeaders": true,
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        784,
+        96
+      ],
+      "id": "99e69a70-0b8c-4937-bc58-066af678d735",
+      "name": "Queue API Handoff - DISABLED",
+      "disabled": true,
+      "notes": "DISABLED by default: create a private n8n HTTP Bearer Auth credential, replace queue URL, validate listing/consent services and authorize activation. Never store tokens in this JSON."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Buyer Record Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buyer Record Search": {
+      "main": [
+        [
+          {
+            "node": "Deals Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deals Search": {
+      "main": [
+        [
+          {
+            "node": "Match Buyers to Deals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Buyers to Deals": {
+      "main": [
+        [
+          {
+            "node": "Vapi Call Data Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vapi Call Data Prep": {
+      "main": [
+        [
+          {
+            "node": "Normalize Phone number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Phone number": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicate Buyers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicate Buyers": {
+      "main": [
+        [
+          {
+            "node": "Queue Handoff Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue Handoff Review": {
+      "main": [
+        [
+          {
+            "node": "Queue API Handoff - DISABLED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "tags": [],
+  "staticData": null
+}

@@ -1,0 +1,10 @@
+{
+  "request": {
+    "actionKey": "fictional-unique-action",
+    "actionType": "suppression",
+    "buyerRef": "fictional-buyer-ref",
+    "data": {"type": "suppression", "reason": "buyer_opt_out"}
+  },
+  "requiredDurableAck": {"applied": true, "actionKey": "fictional-unique-action"},
+  "note": "Private CRM endpoint must enforce unique actionKey, transactional writes, and reply only after committing."
+}
